@@ -1,3 +1,13 @@
 <resources>
     <string name="app_name">Smart_Lamp</string>
+    <string name="app_title">SMART LAMP</string>
+    <string name="btn_on">On</string>
+    <string name="btn_off">Off</string>
+    <string name="label_color">COLOR</string>
+    <string name="label_animations">ANIMATIONS</string>
+    <string name="btn_visualizer">Vizualizer</string>
+    <string name="mode_ambient">Ambient Mode</string>
+    <string name="mode_manual">Manual Mode</string>
+    <string name="mode_run_all">Run All (Auto)</string>
+    <string name="mode_visualizer">Music Visualizer</string>
 </resources>
