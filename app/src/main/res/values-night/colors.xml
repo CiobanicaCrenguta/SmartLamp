@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dark Theme Colors (High Contrast) -->
+    <color name="primary">#C5CAE9</color> <!-- Light Indigo -->
+    <color name="onPrimary">#000000</color>
+    <color name="primaryContainer">#1A237E</color>
+    <color name="onPrimaryContainer">#E8EAF6</color>
+
+    <color name="secondary">#B2DFDB</color> <!-- Light Teal -->
+    <color name="onSecondary">#000000</color>
+    <color name="secondaryContainer">#004D40</color>
+    <color name="onSecondaryContainer">#E0F2F1</color>
+
+    <color name="surface">#121212</color> <!-- Pure Material Dark -->
+    <color name="onSurface">#FFFFFF</color> <!-- Pure White text -->
+    <color name="surfaceVariant">#212121</color> <!-- Slightly lighter dark -->
+    <color name="onSurfaceVariant">#E0E0E0</color> <!-- Light grey labels -->
+</resources>
