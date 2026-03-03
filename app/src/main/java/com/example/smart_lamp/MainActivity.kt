@@ -2,8 +2,10 @@ package com.example.smart_lamp
 
 import android.Manifest
 import android.app.*
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.graphics.Color
@@ -35,6 +37,9 @@ class MainActivity : AppCompatActivity() {
     private val client = OkHttpClient()
     private val CHANNEL_ID = "LampControlChannel"
 
+    private lateinit var btnOn: MaterialButton
+    private lateinit var btnOff: MaterialButton
+
     private val animNames = arrayOf(
         "Spiral", "Fire", "Rain", "Heart", "Plasma", "Noise",
         "Snake", "Twinkle", "Ripple", "Meteor", "ColorWave",
@@ -55,6 +60,18 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private val offReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == "ACTION_UI_UPDATE_OFF") {
+                // Update UI when "OFF" is triggered from notification
+                runOnUiThread {
+                    animateUIState(enabled = false)
+                    setButtonState(btnOn, btnOff, isOn = false)
+                }
+            }
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -62,6 +79,19 @@ class MainActivity : AppCompatActivity() {
         setupControls()
         setupModeSelector()
         showPersistentNotification()
+
+        // Register receiver to listen for notification actions while app is open
+        val filter = IntentFilter("ACTION_UI_UPDATE_OFF")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(offReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(offReceiver, filter)
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        unregisterReceiver(offReceiver)
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
@@ -135,14 +165,16 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupControls() {
-        val btnOn = findViewById<MaterialButton>(R.id.btnOn)
-        val btnOff = findViewById<MaterialButton>(R.id.btnOff)
+        btnOn = findViewById(R.id.btnOn)
+        btnOff = findViewById(R.id.btnOff)
 
         setButtonState(btnOn, btnOff, isOn = true)
 
         btnOn.setOnClickListener {
             playPowerAnimation(it)
+            // When turning ON, we restore mode 0 (Ambient) and ensure brightness is high
             sendToLamp("/setMode?val=0")
+            sendToLamp("/setBrightness?val=255")
             animateUIState(enabled = true)
             setButtonState(btnOn, btnOff, isOn = true)
         }

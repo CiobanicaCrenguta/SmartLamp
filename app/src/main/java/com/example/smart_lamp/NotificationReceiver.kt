@@ -12,8 +12,14 @@ class NotificationReceiver : BroadcastReceiver() {
     private val client = OkHttpClient()
 
     override fun onReceive(context: Context?, intent: Intent?) {
+        // The notification button sends "ACTION_OFF"
         if (intent?.action == "ACTION_OFF") {
             sendOffSignal()
+            
+            // Send a DIFFERENT action to the Activity to avoid an infinite loop
+            val updateIntent = Intent("ACTION_UI_UPDATE_OFF")
+            updateIntent.setPackage(context?.packageName)
+            context?.sendBroadcast(updateIntent)
         }
     }
 
@@ -23,12 +29,11 @@ class NotificationReceiver : BroadcastReceiver() {
         
         client.newCall(request).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
-                Log.e("NotificationReceiver", "Error sending off signal: ${e.message}")
+                Log.e("NotificationReceiver", "Error: ${e.message}")
             }
 
             override fun onResponse(call: Call, response: Response) {
                 response.close()
-                Log.d("NotificationReceiver", "Lamp turned off via notification")
             }
         })
     }
