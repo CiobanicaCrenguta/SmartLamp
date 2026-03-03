@@ -23,6 +23,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.color.MaterialColors
 import com.google.android.material.slider.Slider
@@ -80,13 +81,14 @@ class MainActivity : AppCompatActivity() {
         setupModeSelector()
         showPersistentNotification()
 
-        // Register receiver to listen for notification actions while app is open
+        // Register receiver using ContextCompat to handle export flags across different Android versions
         val filter = IntentFilter("ACTION_UI_UPDATE_OFF")
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(offReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
-        } else {
-            registerReceiver(offReceiver, filter)
-        }
+        ContextCompat.registerReceiver(
+            this,
+            offReceiver,
+            filter,
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        )
     }
 
     override fun onDestroy() {
@@ -281,8 +283,8 @@ class MainActivity : AppCompatActivity() {
 
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_lock_power_off)
-            .setContentTitle("Smart Lamp Control")
-            .setContentText("Tap to turn off the lamp")
+            .setContentTitle("Forgot the light on ?")
+            .setContentText("Bury the light")
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOngoing(true) // Persistent
             .addAction(android.R.drawable.ic_lock_power_off, "TURN OFF", pendingIntent)
