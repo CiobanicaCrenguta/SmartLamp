@@ -1,20 +1,27 @@
 package com.example.smart_lamp
 
-import android.app.Activity
+import android.Manifest
+import android.app.*
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.media.projection.MediaProjectionManager
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.View
 import android.view.animation.AccelerateDecelerateInterpolator
 import android.widget.ArrayAdapter
 import android.widget.AutoCompleteTextView
-import com.google.android.material.button.MaterialButton
-import androidx.appcompat.app.AppCompatActivity
+import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
+import com.google.android.material.button.MaterialButton
 import com.google.android.material.color.MaterialColors
 import com.google.android.material.slider.Slider
 import com.skydoves.colorpickerview.ColorPickerView
@@ -26,6 +33,7 @@ class MainActivity : AppCompatActivity() {
 
     private val lampIp = "http://192.168.1.15"
     private val client = OkHttpClient()
+    private val CHANNEL_ID = "LampControlChannel"
 
     private val animNames = arrayOf(
         "Spiral", "Fire", "Rain", "Heart", "Plasma", "Noise",
@@ -50,8 +58,17 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        createNotificationChannel()
         setupControls()
         setupModeSelector()
+        showPersistentNotification()
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == 101 && grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+            showPersistentNotification()
+        }
     }
 
     private fun setupModeSelector() {
@@ -121,7 +138,6 @@ class MainActivity : AppCompatActivity() {
         val btnOn = findViewById<MaterialButton>(R.id.btnOn)
         val btnOff = findViewById<MaterialButton>(R.id.btnOff)
 
-        // Initial state
         setButtonState(btnOn, btnOff, isOn = true)
 
         btnOn.setOnClickListener {
@@ -200,6 +216,49 @@ class MainActivity : AppCompatActivity() {
                     .start()
             }
             .start()
+    }
+
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val name = "Lamp Control"
+            val descriptionText = "Persistent notification for lamp control"
+            val importance = NotificationManager.IMPORTANCE_LOW
+            val channel = NotificationChannel(CHANNEL_ID, name, importance).apply {
+                description = descriptionText
+            }
+            val notificationManager: NotificationManager =
+                getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.createNotificationChannel(channel)
+        }
+    }
+
+    private fun showPersistentNotification() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 101)
+                return
+            }
+        }
+
+        val intent = Intent(this, NotificationReceiver::class.java).apply {
+            action = "ACTION_OFF"
+        }
+        val pendingIntent: PendingIntent = PendingIntent.getBroadcast(
+            this, 0, intent, PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val builder = NotificationCompat.Builder(this, CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.ic_lock_power_off)
+            .setContentTitle("Smart Lamp Control")
+            .setContentText("Tap to turn off the lamp")
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setOngoing(true) // Persistent
+            .addAction(android.R.drawable.ic_lock_power_off, "TURN OFF", pendingIntent)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+
+        with(NotificationManagerCompat.from(this)) {
+            notify(10, builder.build())
+        }
     }
 
     private fun startVisualizerService(resultCode: Int, data: Intent) {
