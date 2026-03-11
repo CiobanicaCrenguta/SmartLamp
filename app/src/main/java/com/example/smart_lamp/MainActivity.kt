@@ -9,16 +9,15 @@ import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.graphics.Color
-import android.media.projection.MediaProjectionManager
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.View
 import android.view.animation.AccelerateDecelerateInterpolator
 import android.widget.ArrayAdapter
 import android.widget.AutoCompleteTextView
-import android.widget.TextView
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
@@ -30,16 +29,25 @@ import com.google.android.material.slider.Slider
 import com.skydoves.colorpickerview.ColorPickerView
 import com.skydoves.colorpickerview.listeners.ColorListener
 import okhttp3.*
+import org.json.JSONObject
 import java.io.IOException
 
 class MainActivity : AppCompatActivity() {
 
-    private val lampIp = "http://192.168.1.15"
+    private lateinit var lampIp: String
     private val client = OkHttpClient()
     private val CHANNEL_ID = "LampControlChannel"
 
     private lateinit var btnOn: MaterialButton
     private lateinit var btnOff: MaterialButton
+
+    private val handler = Handler(Looper.getMainLooper())
+    private val pollRunnable = object : Runnable {
+        override fun run() {
+            fetchLampStatus()
+            handler.postDelayed(this, 3000)
+        }
+    }
 
     private val animNames = arrayOf(
         "Spiral", "Fire", "Rain", "Heart", "Plasma", "Noise",
@@ -55,16 +63,9 @@ class MainActivity : AppCompatActivity() {
         "Music Visualizer"
     )
 
-    private val projectionLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        if (result.resultCode == Activity.RESULT_OK && result.data != null) {
-            startVisualizerService(result.resultCode, result.data!!)
-        }
-    }
-
     private val offReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == "ACTION_UI_UPDATE_OFF") {
-                // Update UI when "OFF" is triggered from notification
                 runOnUiThread {
                     animateUIState(enabled = false)
                     setButtonState(btnOn, btnOff, isOn = false)
@@ -76,12 +77,14 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
+        lampIp = intent.getStringExtra("LAMP_IP") ?: "http://192.168.1.15"
+
         createNotificationChannel()
         setupControls()
         setupModeSelector()
         showPersistentNotification()
 
-        // Register receiver using ContextCompat to handle export flags across different Android versions
         val filter = IntentFilter("ACTION_UI_UPDATE_OFF")
         ContextCompat.registerReceiver(
             this,
@@ -91,9 +94,67 @@ class MainActivity : AppCompatActivity() {
         )
     }
 
+    override fun onStart() {
+        super.onStart()
+        handler.post(pollRunnable)
+    }
+
+    override fun onStop() {
+        super.onStop()
+        handler.removeCallbacks(pollRunnable)
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         unregisterReceiver(offReceiver)
+    }
+
+    private fun fetchLampStatus() {
+        val request = Request.Builder().url("$lampIp/").build()
+        client.newCall(request).enqueue(object : Callback {
+            override fun onFailure(call: Call, e: IOException) {
+                Log.e("SmartLamp", "Lampa offline: ${e.message}")
+            }
+
+            override fun onResponse(call: Call, response: Response) {
+                val body = response.body?.string()
+                if (response.isSuccessful && body != null) {
+                    try {
+                        val json = JSONObject(body)
+                        val statusMode = json.getInt("mode")
+                        val statusBrightness = json.getInt("brightness")
+                        val statusAuto = json.getInt("auto")
+
+                        runOnUiThread {
+                            updateUIFromStatus(statusMode, statusBrightness, statusAuto)
+                        }
+                    } catch (e: Exception) {
+                        Log.e("SmartLamp", "Eroare parsare JSON: ${e.message}")
+                    }
+                }
+                response.close()
+            }
+        })
+    }
+
+    private fun updateUIFromStatus(mode: Int, brightness: Int, auto: Int) {
+        val isOn = brightness > 0
+        setButtonState(btnOn, btnOff, isOn)
+
+        val modeText = when {
+            mode == 0 && isOn -> modes[0] // Ambient
+            mode == 1 && auto == 1 -> modes[1] // Run All
+            mode == 1 && auto == 0 -> modes[2] // Pick Animation
+            mode == 0 && !isOn -> modes[3] // Pick Color
+            mode == 2 -> modes[4] // Music Visualizer
+            else -> modes[0]
+        }
+
+        val modeSelector = findViewById<AutoCompleteTextView>(R.id.modeSelector)
+        if (modeSelector.text.toString() != modeText) {
+            modeSelector.setText(modeText, false)
+            animateUIState(enabled = (mode == 1 && auto == 0) || (mode == 0 && isOn))
+        }
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
@@ -111,32 +172,27 @@ class MainActivity : AppCompatActivity() {
         modeSelector.setOnItemClickListener { _, _, position, _ ->
             when (position) {
                 0 -> { // Ambient
-                    stopVisualizerService()
                     sendToLamp("/setMode?val=0")
                     animateUIState(enabled = false)
                 }
                 1 -> { // Run All Animations
-                    stopVisualizerService()
                     sendToLamp("/setAuto?val=1")
                     sendToLamp("/setMode?val=1")
                     animateUIState(enabled = false)
                 }
                 2 -> { // Pick Animation
-                    stopVisualizerService()
                     sendToLamp("/setAuto?val=0")
                     sendToLamp("/setMode?val=1")
                     animateUIState(enabled = true)
                 }
                 3 -> { // Pick Color
-                    stopVisualizerService()
                     sendToLamp("/setMode?val=0")
                     animateUIState(enabled = true)
                 }
                 4 -> { // Music Visualizer
-                    sendToLamp("/setMode?val=2")
-                    animateUIState(enabled = false)
-                    val projectionManager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
-                    projectionLauncher.launch(projectionManager.createScreenCaptureIntent())
+                    val intent = Intent(this, VisualizerActivity::class.java)
+                    intent.putExtra("LAMP_IP", lampIp)
+                    startActivity(intent)
                 }
             }
         }
@@ -151,7 +207,7 @@ class MainActivity : AppCompatActivity() {
         val colorCard = findViewById<View>(R.id.colorCard)
         val animationCard = findViewById<View>(R.id.animationCard)
 
-        listOf(colorCard, animationCard).forEach { view ->
+        listOfNotNull(colorCard, animationCard).forEach { view ->
             view.animate()
                 .alpha(targetAlpha)
                 .scaleX(targetScale)
@@ -174,7 +230,6 @@ class MainActivity : AppCompatActivity() {
 
         btnOn.setOnClickListener {
             playPowerAnimation(it)
-            // When turning ON, we restore mode 0 (Ambient) and ensure brightness is high
             sendToLamp("/setMode?val=0")
             sendToLamp("/setBrightness?val=255")
             animateUIState(enabled = true)
@@ -274,37 +329,29 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        // IMPORTANT: Trimitem IP-ul actual al lămpii către Receiver
         val intent = Intent(this, NotificationReceiver::class.java).apply {
             action = "ACTION_OFF"
+            putExtra("LAMP_IP", lampIp)
         }
         val pendingIntent: PendingIntent = PendingIntent.getBroadcast(
-            this, 0, intent, PendingIntent.FLAG_IMMUTABLE
+            this, 0, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_lock_power_off)
-            .setContentTitle("Forgot the light on ?")
-            .setContentText("Bury the light")
+            .setContentTitle("Smart Lamp is ON")
+            .setContentText("Tap to turn off")
             .setPriority(NotificationCompat.PRIORITY_LOW)
-            .setOngoing(true) // Persistent
+            .setOngoing(true)
             .addAction(android.R.drawable.ic_lock_power_off, "TURN OFF", pendingIntent)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
 
         with(NotificationManagerCompat.from(this)) {
-            notify(10, builder.build())
+            if (ActivityCompat.checkSelfPermission(this@MainActivity, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
+                notify(10, builder.build())
+            }
         }
-    }
-
-    private fun startVisualizerService(resultCode: Int, data: Intent) {
-        val intent = Intent(this, VisualizerService::class.java).apply {
-            putExtra("resultCode", resultCode)
-            putExtra("data", data)
-        }
-        startForegroundService(intent)
-    }
-
-    private fun stopVisualizerService() {
-        stopService(Intent(this, VisualizerService::class.java))
     }
 
     private fun sendToLamp(path: String) {
