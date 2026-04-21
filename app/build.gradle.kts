@@ -5,11 +5,7 @@ plugins {
 
 android {
     namespace = "com.example.smart_lamp"
-    compileSdk {
-        version = release(36) {
-            minorApiLevel = 1
-        }
-    }
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.example.smart_lamp"
@@ -48,6 +44,7 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.compose.material.icons.extended)
     implementation("androidx.appcompat:appcompat:1.6.1")
     implementation("com.google.android.material:material:1.11.0")
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
@@ -60,5 +57,7 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    // Note: colorpickerview was removed from MainActivity.kt logic to prevent crashes
+    // but kept here for dependency consistency if needed elsewhere.
     implementation("com.github.skydoves:colorpickerview:2.2.4")
 }
