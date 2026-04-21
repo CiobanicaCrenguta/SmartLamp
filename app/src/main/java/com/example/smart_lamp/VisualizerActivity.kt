@@ -103,8 +103,9 @@ class VisualizerActivity : ComponentActivity() {
                 )
             } else {
                 listOf(
-                    colorScheme.primaryContainer.copy(alpha = 0.4f),
-                    colorScheme.surface
+                    Color(0xFFC5CAE9), // Indigo 100
+                    //Color(0xFFE8EAF6), // Indigo 50
+                    Color.White
                 )
             }
         )
