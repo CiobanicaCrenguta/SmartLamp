@@ -63,6 +63,36 @@ class VisualizerActivity : ComponentActivity() {
     fun VisualizerScreen() {
         val colorScheme = MaterialTheme.colorScheme
         val isDark = isSystemInDarkTheme()
+
+        // Shared Animation State for Perfect Sync
+        val infiniteTransition = rememberInfiniteTransition(label = "shared_visualizer")
+        val scale1 by infiniteTransition.animateFloat(
+            initialValue = 0.8f,
+            targetValue = 1.2f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(600, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "scale1"
+        )
+        val scale2 by infiniteTransition.animateFloat(
+            initialValue = 1f,
+            targetValue = 0.7f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(500, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "scale2"
+        )
+        val scale3 by infiniteTransition.animateFloat(
+            initialValue = 1.1f,
+            targetValue = 0.9f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(700, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "scale3"
+        )
         
         // Deep, modern gradient for a "Visualizer" feel
         val gradientBackground = Brush.verticalGradient(
@@ -111,7 +141,7 @@ class VisualizerActivity : ComponentActivity() {
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
-                    AnimatedVisualizerIcon()
+                    AnimatedVisualizerIcon(scale1, scale2, scale3)
 
                     Spacer(modifier = Modifier.height(32.dp))
 
@@ -136,7 +166,7 @@ class VisualizerActivity : ComponentActivity() {
 
                     Spacer(modifier = Modifier.height(32.dp))
 
-                    // High contrast Streaming Card
+                    // High contrast Streaming Card with Animated Icon
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(20.dp),
@@ -144,10 +174,10 @@ class VisualizerActivity : ComponentActivity() {
                             containerColor = if (isDark) {
                                 Color(0xFF2D2D44)
                             } else {
-                                colorScheme.primaryContainer.copy(alpha = 0.7f)
+                                Color(0xFFE3F2FD) // Solid Light Blue for better contrast/no glitch
                             }
                         ),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                     ) {
                         Row(
                             modifier = Modifier
@@ -159,8 +189,10 @@ class VisualizerActivity : ComponentActivity() {
                             Icon(
                                 imageVector = Icons.Default.GraphicEq,
                                 contentDescription = null,
-                                tint = if (isDark) Color(0xFF80DEEA) else colorScheme.primary, // Bright Cyan in dark
-                                modifier = Modifier.size(28.dp)
+                                tint = if (isDark) Color(0xFF80DEEA) else colorScheme.primary,
+                                modifier = Modifier
+                                    .size(28.dp)
+                                    .scale(scale1) // Animated in sync
                             )
                             Spacer(modifier = Modifier.width(12.dp))
                             Text(
@@ -168,7 +200,7 @@ class VisualizerActivity : ComponentActivity() {
                                 style = MaterialTheme.typography.titleMedium.copy(
                                     fontWeight = FontWeight.ExtraBold
                                 ),
-                                color = if (isDark) Color(0xFFE0F7FA) else colorScheme.primary // Very light cyan/white in dark
+                                color = if (isDark) Color(0xFFE0F7FA) else colorScheme.primary
                             )
                         }
                     }
@@ -209,42 +241,10 @@ class VisualizerActivity : ComponentActivity() {
     }
 
     @Composable
-    fun AnimatedVisualizerIcon() {
-        val infiniteTransition = rememberInfiniteTransition(label = "visualizer")
-        
+    fun AnimatedVisualizerIcon(scale1: Float, scale2: Float, scale3: Float) {
         // Purple and Pink colors for the visualizer
         val purple = Color(0xFFBB86FC)
         val pink = Color(0xFFF48FB1)
-
-        val scale1 by infiniteTransition.animateFloat(
-            initialValue = 0.8f,
-            targetValue = 1.2f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(600, easing = FastOutSlowInEasing),
-                repeatMode = RepeatMode.Reverse
-            ),
-            label = "scale1"
-        )
-
-        val scale2 by infiniteTransition.animateFloat(
-            initialValue = 1f,
-            targetValue = 0.7f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(500, easing = FastOutSlowInEasing),
-                repeatMode = RepeatMode.Reverse
-            ),
-            label = "scale2"
-        )
-
-        val scale3 by infiniteTransition.animateFloat(
-            initialValue = 1.1f,
-            targetValue = 0.9f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(700, easing = FastOutSlowInEasing),
-                repeatMode = RepeatMode.Reverse
-            ),
-            label = "scale3"
-        )
 
         Box(
             modifier = Modifier.size(180.dp),
