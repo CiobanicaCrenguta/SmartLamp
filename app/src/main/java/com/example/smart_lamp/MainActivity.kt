@@ -21,10 +21,13 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PowerSettingsNew
@@ -33,12 +36,15 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -64,6 +70,7 @@ class MainActivity : ComponentActivity() {
     private val selectedMode = mutableStateOf("Ambient")
     private val selectedAnimation = mutableStateOf("Spiral")
     private val uiEnabled = mutableStateOf(true)
+    private val selectedColor = mutableStateOf(Color(0xFF2196F3))
 
     private val handler = Handler(Looper.getMainLooper())
     private val pollRunnable = object : Runnable {
@@ -136,230 +143,310 @@ class MainActivity : ComponentActivity() {
             label = "alpha"
         )
         val scale by animateFloatAsState(
-            targetValue = if (uiEnabled.value) 1.0f else 0.96f,
+            targetValue = if (uiEnabled.value) 1.0f else 0.98f,
             animationSpec = tween(durationMillis = 400),
             label = "scale"
         )
 
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding()
-                .navigationBarsPadding()
-                .padding(horizontal = 16.dp)
-                .verticalScroll(scrollState),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = "SMART LAMP",
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(top = 24.dp, bottom = 32.dp)
-            )
-
-            // Power Controls Card
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp),
-                shape = MaterialTheme.shapes.medium
-            ) {
-                Row(
-                    modifier = Modifier
-                        .padding(16.dp)
-                        .fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    val onButtonColor by animateColorAsState(
-                        targetValue = if (isLampOn.value) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondaryContainer,
-                        animationSpec = tween(durationMillis = 300),
-                        label = "onColor"
-                    )
-                    val offButtonColor by animateColorAsState(
-                        targetValue = if (!isLampOn.value) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.secondaryContainer,
-                        animationSpec = tween(durationMillis = 300),
-                        label = "offColor"
-                    )
-
-                    Button(
-                        onClick = {
-                            sendToLamp("/setMode?val=0")
-                            sendToLamp("/setBrightness?val=255")
-                            uiEnabled.value = true
-                            isLampOn.value = true
-                        },
-                        modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = onButtonColor,
-                            contentColor = if (isLampOn.value) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSecondaryContainer
+        Scaffold(
+            topBar = {
+                CenterAlignedTopAppBar(
+                    title = {
+                        Text(
+                            "Smart Lamp",
+                            style = MaterialTheme.typography.headlineMedium.copy(
+                                fontWeight = FontWeight.ExtraBold,
+                                letterSpacing = 1.sp
+                            )
                         )
-                    ) {
-                        Icon(Icons.Default.PowerSettingsNew, contentDescription = null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("On")
-                    }
-
-                    Button(
-                        onClick = {
-                            sendToLamp("/setBrightness?val=0")
-                            uiEnabled.value = false
-                            isLampOn.value = false
-                        },
-                        modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = offButtonColor,
-                            contentColor = if (!isLampOn.value) MaterialTheme.colorScheme.onError else MaterialTheme.colorScheme.onSecondaryContainer
-                        )
-                    ) {
-                        Icon(Icons.Default.PowerSettingsNew, contentDescription = null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("Off")
-                    }
-                }
+                    },
+                    actions = {},
+                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                        containerColor = Color.Transparent,
+                        titleContentColor = MaterialTheme.colorScheme.onBackground
+                    )
+                )
             }
-
-            // Grouping the rest of the UI for collective animation
+        ) { padding ->
             Column(
                 modifier = Modifier
-                    .alpha(alpha)
-                    .scale(scale),
+                    .fillMaxSize()
+                    .padding(padding)
+                    .verticalScroll(scrollState)
+                    .padding(horizontal = 20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Mode Selection
-                var modeExpanded by remember { mutableStateOf(false) }
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Modern Power Section
+                PowerSection()
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Modern Controls Group
+                Column(
+                    modifier = Modifier
+                        .alpha(alpha)
+                        .scale(scale),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(20.dp)
+                ) {
+                    ModernModeSelector()
+                    ModernColorPickerCard()
+                    ModernAnimationCard()
+                }
+                
+                Spacer(modifier = Modifier.height(32.dp))
+            }
+        }
+    }
+
+    @Composable
+    fun PowerSection() {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .shadow(8.dp, RoundedCornerShape(24.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(24.dp))
+                .padding(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            PowerButton(
+                label = "ON",
+                isActive = isLampOn.value,
+                activeColor = MaterialTheme.colorScheme.primary,
+                icon = Icons.Default.PowerSettingsNew,
+                onClick = {
+                    sendToLamp("/setMode?val=0")
+                    sendToLamp("/setBrightness?val=255")
+                    uiEnabled.value = true
+                    isLampOn.value = true
+                },
+                modifier = Modifier.weight(1f)
+            )
+
+            PowerButton(
+                label = "OFF",
+                isActive = !isLampOn.value,
+                activeColor = MaterialTheme.colorScheme.error,
+                icon = Icons.Default.PowerSettingsNew,
+                onClick = {
+                    sendToLamp("/setBrightness?val=0")
+                    uiEnabled.value = false
+                    isLampOn.value = false
+                },
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+
+    @Composable
+    fun PowerButton(
+        label: String,
+        isActive: Boolean,
+        activeColor: Color,
+        icon: ImageVector,
+        onClick: () -> Unit,
+        modifier: Modifier = Modifier
+    ) {
+        val containerColor by animateColorAsState(
+            targetValue = if (isActive) activeColor else Color.Transparent,
+            animationSpec = tween(300), label = "color"
+        )
+        val contentColor by animateColorAsState(
+            targetValue = if (isActive) Color.White else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+            animationSpec = tween(300), label = "content"
+        )
+
+        Box(
+            modifier = modifier
+                .height(64.dp)
+                .clip(RoundedCornerShape(20.dp))
+                .background(containerColor)
+                .clickable(onClick = onClick),
+            contentAlignment = Alignment.Center
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(icon, contentDescription = null, tint = contentColor)
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = contentColor
+                )
+            }
+        }
+    }
+
+    @OptIn(ExperimentalMaterial3Api::class)
+    @Composable
+    fun ModernModeSelector() {
+        var modeExpanded by remember { mutableStateOf(false) }
+        ExposedDropdownMenuBox(
+            expanded = modeExpanded,
+            onExpandedChange = { if (uiEnabled.value) modeExpanded = !modeExpanded },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            OutlinedTextField(
+                value = selectedMode.value,
+                onValueChange = {},
+                readOnly = true,
+                enabled = uiEnabled.value,
+                label = { Text("Lamp Mode", fontWeight = FontWeight.Medium) },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = modeExpanded) },
+                modifier = Modifier
+                    .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                    .fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                textStyle = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                )
+            )
+            ExposedDropdownMenu(
+                expanded = modeExpanded,
+                onDismissRequest = { modeExpanded = false }
+            ) {
+                modes.forEachIndexed { index, mode ->
+                    DropdownMenuItem(
+                        text = { Text(mode) },
+                        onClick = {
+                            selectedMode.value = mode
+                            modeExpanded = false
+                            handleModeSelection(index)
+                        }
+                    )
+                }
+            }
+        }
+    }
+
+    @Composable
+    fun ModernColorPickerCard() {
+        val isColorMode = selectedMode.value == "Pick Color"
+        val colorPickerAlpha by animateFloatAsState(
+            targetValue = if (uiEnabled.value && isColorMode) 1.0f else 0.4f,
+            label = "colorAlpha"
+        )
+        
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .alpha(colorPickerAlpha),
+            shape = RoundedCornerShape(28.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    "COLORS",
+                    style = MaterialTheme.typography.labelMedium.copy(
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = 2.sp
+                    ),
+                    color = selectedColor.value
+                )
+                
+                Spacer(modifier = Modifier.height(24.dp))
+
+                SimpleColorPicker(
+                    enabled = uiEnabled.value && isColorMode,
+                    onColorChanged = { r, g, b ->
+                        selectedColor.value = android.graphics.Color.rgb(r, g, b).let {
+                            Color(it)
+                        }
+                        sendToLamp("/setColor?r=$r&g=$g&b=$b")
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(32.dp))
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        "Brightness",
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                        modifier = Modifier.padding(end = 12.dp)
+                    )
+                    Slider(
+                        value = brightnessState.value,
+                        onValueChange = { 
+                            if (uiEnabled.value) {
+                                brightnessState.value = it
+                                sendToLamp("/setBrightness?val=${it.toInt()}")
+                            }
+                        },
+                        valueRange = 0f..255f,
+                        enabled = uiEnabled.value,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+        }
+    }
+
+    @OptIn(ExperimentalMaterial3Api::class)
+    @Composable
+    fun ModernAnimationCard() {
+        val isAnimMode = selectedMode.value == "Pick Animation"
+        val animPickerAlpha by animateFloatAsState(
+            targetValue = if (uiEnabled.value && isAnimMode) 1.0f else 0.4f,
+            label = "animAlpha"
+        )
+        
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .alpha(animPickerAlpha),
+            shape = RoundedCornerShape(28.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+        ) {
+            Column(modifier = Modifier.padding(24.dp)) {
+                Text(
+                    "ANIMATIONS",
+                    style = MaterialTheme.typography.labelMedium.copy(
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = 2.sp
+                    ),
+                    color = MaterialTheme.colorScheme.secondary
+                )
+                
+                Spacer(modifier = Modifier.height(16.dp))
+
+                var animExpanded by remember { mutableStateOf(false) }
                 ExposedDropdownMenuBox(
-                    expanded = modeExpanded,
-                    onExpandedChange = { if (uiEnabled.value) modeExpanded = !modeExpanded },
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
+                    expanded = animExpanded,
+                    onExpandedChange = { if (uiEnabled.value && isAnimMode) animExpanded = !animExpanded },
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     OutlinedTextField(
-                        value = selectedMode.value,
+                        value = selectedAnimation.value,
                         onValueChange = {},
                         readOnly = true,
-                        enabled = uiEnabled.value,
-                        label = { Text("Select Lamp Mode") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = modeExpanded) },
+                        enabled = uiEnabled.value && isAnimMode,
+                        placeholder = { Text("Select animation") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = animExpanded) },
                         modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
                         textStyle = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold)
                     )
                     ExposedDropdownMenu(
-                        expanded = modeExpanded,
-                        onDismissRequest = { modeExpanded = false }
+                        expanded = animExpanded,
+                        onDismissRequest = { animExpanded = false }
                     ) {
-                        modes.forEachIndexed { index, mode ->
+                        animNames.forEachIndexed { index, name ->
                             DropdownMenuItem(
-                                text = { Text(mode) },
+                                text = { Text(name) },
                                 onClick = {
-                                    selectedMode.value = mode
-                                    modeExpanded = false
-                                    handleModeSelection(index)
+                                    selectedAnimation.value = name
+                                    animExpanded = false
+                                    if (uiEnabled.value) {
+                                        sendToLamp("/setAnimation?val=$index")
+                                    }
                                 }
                             )
-                        }
-                    }
-                }
-
-                // Color Picker Card
-                val isColorMode = selectedMode.value == "Pick Color"
-                val colorPickerAlpha by animateFloatAsState(
-                    targetValue = if (uiEnabled.value && isColorMode) 1.0f else 0.4f,
-                    label = "colorAlpha"
-                )
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 16.dp)
-                        .alpha(colorPickerAlpha),
-                    shape = MaterialTheme.shapes.medium
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            "COLOR",
-                            fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.labelLarge,
-                            modifier = Modifier.padding(bottom = 16.dp)
-                        )
-
-                        SimpleColorPicker(
-                            enabled = uiEnabled.value && isColorMode,
-                            onColorChanged = { r, g, b ->
-                                sendToLamp("/setColor?r=$r&g=$g&b=$b")
-                            }
-                        )
-
-                        Slider(
-                            value = brightnessState.value,
-                            onValueChange = { 
-                                if (uiEnabled.value) {
-                                    brightnessState.value = it
-                                    sendToLamp("/setBrightness?val=${it.toInt()}")
-                                }
-                            },
-                            valueRange = 0f..255f,
-                            enabled = uiEnabled.value,
-                            modifier = Modifier.padding(top = 16.dp)
-                        )
-                    }
-                }
-
-                // Animation Card
-                val isAnimMode = selectedMode.value == "Pick Animation"
-                val animPickerAlpha by animateFloatAsState(
-                    targetValue = if (uiEnabled.value && isAnimMode) 1.0f else 0.4f,
-                    label = "animAlpha"
-                )
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 32.dp)
-                        .alpha(animPickerAlpha),
-                    shape = MaterialTheme.shapes.medium
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp)
-                    ) {
-                        Text(
-                            "ANIMATIONS",
-                            fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.labelLarge,
-                            modifier = Modifier.padding(bottom = 8.dp)
-                        )
-
-                        var animExpanded by remember { mutableStateOf(false) }
-                        ExposedDropdownMenuBox(
-                            expanded = animExpanded,
-                            onExpandedChange = { if (uiEnabled.value && isAnimMode) animExpanded = !animExpanded },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            OutlinedTextField(
-                                value = selectedAnimation.value,
-                                onValueChange = {},
-                                readOnly = true,
-                                enabled = uiEnabled.value && isAnimMode,
-                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = animExpanded) },
-                                modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
-                                textStyle = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold)
-                            )
-                            ExposedDropdownMenu(
-                                expanded = animExpanded,
-                                onDismissRequest = { animExpanded = false }
-                            ) {
-                                animNames.forEachIndexed { index, name ->
-                                    DropdownMenuItem(
-                                        text = { Text(name) },
-                                        onClick = {
-                                            selectedAnimation.value = name
-                                            animExpanded = false
-                                            if (uiEnabled.value) {
-                                                sendToLamp("/setAnimation?val=$index")
-                                            }
-                                        }
-                                    )
-                                }
-                            }
                         }
                     }
                 }
@@ -388,16 +475,12 @@ class MainActivity : ComponentActivity() {
                     detectTapGestures { offset ->
                         val centerX = size.width / 2f
                         val centerY = size.height / 2f
-                        
                         val dx = offset.x - centerX
                         val dy = offset.y - centerY
                         val angleRad = atan2(dy, dx)
-                        
                         var adjustedAngle = (angleRad * 180 / PI).toFloat() + 90f
                         if (adjustedAngle < 0) adjustedAngle += 360f
-                        
                         val hue = (360f - adjustedAngle) % 360f
-                        
                         indicatorAngle = angleRad
                         val colorInt = HSVToColor(floatArrayOf(hue, 1f, 1f))
                         onColorChanged(
@@ -415,11 +498,9 @@ class MainActivity : ComponentActivity() {
                         val dx = change.position.x - centerX
                         val dy = change.position.y - centerY
                         val angleRad = atan2(dy, dx)
-                        
                         var adjustedAngle = (angleRad * 180 / PI).toFloat() + 90f
                         if (adjustedAngle < 0) adjustedAngle += 360f
                         val hue = (360f - adjustedAngle) % 360f
-
                         indicatorAngle = angleRad
                         val colorInt = HSVToColor(floatArrayOf(hue, 1f, 1f))
                         onColorChanged(
@@ -452,15 +533,9 @@ class MainActivity : ComponentActivity() {
 
                     drawCircle(
                         color = Color.White,
-                        radius = 12.dp.toPx(),
+                        radius = 14.dp.toPx(),
                         center = Offset(x, y),
-                        style = Stroke(width = 3.dp.toPx())
-                    )
-                    drawCircle(
-                        color = Color.Black.copy(alpha = 0.5f),
-                        radius = 13.dp.toPx(),
-                        center = Offset(x, y),
-                        style = Stroke(width = 1.dp.toPx())
+                        style = Stroke(width = 4.dp.toPx())
                     )
                 }
             }
@@ -539,7 +614,6 @@ class MainActivity : ComponentActivity() {
     private fun updateUIFromStatus(mode: Int, brightness: Int, auto: Int) {
         val isOn = brightness > 0
         isLampOn.value = isOn
-        brightnessState.value = brightness.toFloat()
 
         val modeText = when {
             mode == 0 && isOn -> modes[0]
