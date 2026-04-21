@@ -75,6 +75,9 @@ class MainActivity : ComponentActivity() {
     private val uiEnabled = mutableStateOf(true)
     private val selectedColor = mutableStateOf(Color(0xFF2196F3))
 
+    // Track last interaction to prevent status polling from overriding user changes
+    private var lastInteractionTime: Long = 0
+
     private val handler = Handler(Looper.getMainLooper())
     private val pollRunnable = object : Runnable {
         override fun run() {
@@ -140,7 +143,7 @@ class MainActivity : ComponentActivity() {
     fun MainScreen() {
         val scrollState = rememberScrollState()
         
-        val alpha by animateFloatAsState(
+        val powerAlpha by animateFloatAsState(
             targetValue = if (uiEnabled.value) 1.0f else 0.4f,
             animationSpec = tween(durationMillis = 400),
             label = "alpha"
@@ -186,10 +189,15 @@ class MainActivity : ComponentActivity() {
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Modern Controls Group
+                // Brightness Slider - Independent of Mode, only dependent on Power
+                ModernBrightnessCard(powerAlpha)
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Modern Controls Group - Fades when lamp is off
                 Column(
                     modifier = Modifier
-                        .alpha(alpha)
+                        .alpha(powerAlpha)
                         .scale(scale),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(20.dp)
@@ -344,6 +352,40 @@ class MainActivity : ComponentActivity() {
     }
 
     @Composable
+    fun ModernBrightnessCard(alpha: Float) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .alpha(alpha),
+            shape = RoundedCornerShape(28.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+        ) {
+            Row(
+                modifier = Modifier.padding(24.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "Brightness",
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                    modifier = Modifier.padding(end = 12.dp)
+                )
+                Slider(
+                    value = brightnessState.value,
+                    onValueChange = { 
+                        if (uiEnabled.value) {
+                            brightnessState.value = it
+                            sendToLamp("/setBrightness?val=${it.toInt()}")
+                        }
+                    },
+                    valueRange = 0f..255f,
+                    enabled = uiEnabled.value,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+    }
+
+    @Composable
     fun ModernColorPickerCard() {
         val isColorMode = selectedMode.value == "Pick Color"
         val colorPickerAlpha by animateFloatAsState(
@@ -382,28 +424,6 @@ class MainActivity : ComponentActivity() {
                         sendToLamp("/setColor?r=$r&g=$g&b=$b")
                     }
                 )
-
-                Spacer(modifier = Modifier.height(32.dp))
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        "Brightness",
-                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                        modifier = Modifier.padding(end = 12.dp)
-                    )
-                    Slider(
-                        value = brightnessState.value,
-                        onValueChange = { 
-                            if (uiEnabled.value) {
-                                brightnessState.value = it
-                                sendToLamp("/setBrightness?val=${it.toInt()}")
-                            }
-                        },
-                        valueRange = 0f..255f,
-                        enabled = uiEnabled.value,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
             }
         }
     }
@@ -588,6 +608,7 @@ class MainActivity : ComponentActivity() {
     private fun handleModeSelection(position: Int) {
         when (position) {
             0 -> { // Ambient
+                sendToLamp("/setAuto?val=0")
                 sendToLamp("/setMode?val=0")
                 uiEnabled.value = true
             }
@@ -602,6 +623,7 @@ class MainActivity : ComponentActivity() {
                 uiEnabled.value = true
             }
             3 -> { // Pick Color
+                sendToLamp("/setAuto?val=0")
                 sendToLamp("/setMode?val=0")
                 uiEnabled.value = true
             }
@@ -629,6 +651,9 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun fetchLampStatus() {
+        // Anti-oscillation: don't poll if user recently interacted
+        if (System.currentTimeMillis() - lastInteractionTime < 5000) return
+
         val request = Request.Builder().url("$lampIp/").build()
         client.newCall(request).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
@@ -658,12 +683,16 @@ class MainActivity : ComponentActivity() {
         val isOn = brightness > 0
         isLampOn.value = isOn
 
+        // Logic to determine mode from firmware state
         val modeText = when {
-            mode == 0 && isOn -> modes[0]
-            mode == 1 && auto == 1 -> modes[1]
-            mode == 1 && auto == 0 -> modes[2]
-            mode == 0 && !isOn -> modes[3]
-            mode == 2 -> modes[4]
+            mode == 1 && auto == 1 -> modes[1] // Run All
+            mode == 1 && auto == 0 -> modes[2] // Pick Animation
+            mode == 2 -> modes[4]              // Music
+            mode == 0 -> {
+                // If mode 0 and auto 0, it could be Ambient or Pick Color.
+                // We prioritize staying in the current selection if it's one of these.
+                if (selectedMode.value == modes[3]) modes[3] else modes[0]
+            }
             else -> modes[0]
         }
 
@@ -671,6 +700,11 @@ class MainActivity : ComponentActivity() {
             selectedMode.value = modeText
         }
         uiEnabled.value = isOn
+        
+        // Update local brightness state if not recently touched
+        if (System.currentTimeMillis() - lastInteractionTime > 5000) {
+            brightnessState.value = brightness.toFloat()
+        }
     }
 
     private fun createNotificationChannel() {
@@ -714,6 +748,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun sendToLamp(path: String) {
+        lastInteractionTime = System.currentTimeMillis()
         val url = "$lampIp$path"
         val request = Request.Builder().url(url).build()
         client.newCall(request).enqueue(object : Callback {
