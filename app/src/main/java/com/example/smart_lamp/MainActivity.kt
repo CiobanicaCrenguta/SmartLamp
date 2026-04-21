@@ -15,6 +15,7 @@ import android.os.Looper
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -37,6 +38,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -57,11 +59,11 @@ class MainActivity : ComponentActivity() {
     private val client = OkHttpClient()
     private val CHANNEL_ID = "LampControlChannel"
 
-    private var brightnessState = mutableStateOf(120f)
-    private var isLampOn = mutableStateOf(true)
-    private var selectedMode = mutableStateOf("Ambient")
-    private var selectedAnimation = mutableStateOf("Spiral")
-    private var uiEnabled = mutableStateOf(true)
+    private val brightnessState = mutableStateOf(120f)
+    private val isLampOn = mutableStateOf(true)
+    private val selectedMode = mutableStateOf("Ambient")
+    private val selectedAnimation = mutableStateOf("Spiral")
+    private val uiEnabled = mutableStateOf(true)
 
     private val handler = Handler(Looper.getMainLooper())
     private val pollRunnable = object : Runnable {
@@ -95,6 +97,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         
         lampIp = intent.getStringExtra("LAMP_IP") ?: "http://192.168.1.15"
@@ -141,7 +144,9 @@ class MainActivity : ComponentActivity() {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp)
+                .statusBarsPadding()
+                .navigationBarsPadding()
+                .padding(horizontal = 16.dp)
                 .verticalScroll(scrollState),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -255,10 +260,16 @@ class MainActivity : ComponentActivity() {
                 }
 
                 // Color Picker Card
+                val isColorMode = selectedMode.value == "Pick Color"
+                val colorPickerAlpha by animateFloatAsState(
+                    targetValue = if (uiEnabled.value && isColorMode) 1.0f else 0.4f,
+                    label = "colorAlpha"
+                )
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 16.dp),
+                        .padding(bottom = 16.dp)
+                        .alpha(colorPickerAlpha),
                     shape = MaterialTheme.shapes.medium
                 ) {
                     Column(
@@ -273,7 +284,7 @@ class MainActivity : ComponentActivity() {
                         )
 
                         SimpleColorPicker(
-                            enabled = uiEnabled.value,
+                            enabled = uiEnabled.value && isColorMode,
                             onColorChanged = { r, g, b ->
                                 sendToLamp("/setColor?r=$r&g=$g&b=$b")
                             }
@@ -295,8 +306,16 @@ class MainActivity : ComponentActivity() {
                 }
 
                 // Animation Card
+                val isAnimMode = selectedMode.value == "Pick Animation"
+                val animPickerAlpha by animateFloatAsState(
+                    targetValue = if (uiEnabled.value && isAnimMode) 1.0f else 0.4f,
+                    label = "animAlpha"
+                )
                 Card(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 32.dp)
+                        .alpha(animPickerAlpha),
                     shape = MaterialTheme.shapes.medium
                 ) {
                     Column(
@@ -312,14 +331,14 @@ class MainActivity : ComponentActivity() {
                         var animExpanded by remember { mutableStateOf(false) }
                         ExposedDropdownMenuBox(
                             expanded = animExpanded,
-                            onExpandedChange = { if (uiEnabled.value) animExpanded = !animExpanded },
+                            onExpandedChange = { if (uiEnabled.value && isAnimMode) animExpanded = !animExpanded },
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             OutlinedTextField(
                                 value = selectedAnimation.value,
                                 onValueChange = {},
                                 readOnly = true,
-                                enabled = uiEnabled.value,
+                                enabled = uiEnabled.value && isAnimMode,
                                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = animExpanded) },
                                 modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
                                 textStyle = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold)
@@ -369,11 +388,17 @@ class MainActivity : ComponentActivity() {
                     detectTapGestures { offset ->
                         val centerX = size.width / 2f
                         val centerY = size.height / 2f
-                        val angleRad = atan2(offset.y - centerY, offset.x - centerX)
-                        var hue = (angleRad * 180 / PI).toFloat()
-                        if (hue < 0) hue += 360f
+                        
+                        val dx = offset.x - centerX
+                        val dy = offset.y - centerY
+                        val angleRad = atan2(dy, dx)
+                        
+                        var adjustedAngle = (angleRad * 180 / PI).toFloat() + 90f
+                        if (adjustedAngle < 0) adjustedAngle += 360f
+                        
+                        val hue = (360f - adjustedAngle) % 360f
+                        
                         indicatorAngle = angleRad
-
                         val colorInt = HSVToColor(floatArrayOf(hue, 1f, 1f))
                         onColorChanged(
                             android.graphics.Color.red(colorInt),
@@ -387,11 +412,15 @@ class MainActivity : ComponentActivity() {
                     detectDragGestures { change, _ ->
                         val centerX = size.width / 2f
                         val centerY = size.height / 2f
-                        val angleRad = atan2(change.position.y - centerY, change.position.x - centerX)
-                        var hue = (angleRad * 180 / PI).toFloat()
-                        if (hue < 0) hue += 360f
-                        indicatorAngle = angleRad
+                        val dx = change.position.x - centerX
+                        val dy = change.position.y - centerY
+                        val angleRad = atan2(dy, dx)
+                        
+                        var adjustedAngle = (angleRad * 180 / PI).toFloat() + 90f
+                        if (adjustedAngle < 0) adjustedAngle += 360f
+                        val hue = (360f - adjustedAngle) % 360f
 
+                        indicatorAngle = angleRad
                         val colorInt = HSVToColor(floatArrayOf(hue, 1f, 1f))
                         onColorChanged(
                             android.graphics.Color.red(colorInt),
@@ -405,11 +434,14 @@ class MainActivity : ComponentActivity() {
             Canvas(modifier = Modifier.fillMaxSize()) {
                 val radius = size.minDimension / 2
                 val thickness = 40.dp.toPx()
-                drawCircle(
-                    brush = sweepBrush,
-                    radius = radius - thickness / 2,
-                    style = Stroke(width = thickness)
-                )
+                
+                rotate(-90f) {
+                    drawCircle(
+                        brush = sweepBrush,
+                        radius = radius - thickness / 2,
+                        style = Stroke(width = thickness)
+                    )
+                }
 
                 indicatorAngle?.let { angle ->
                     val centerX = size.width / 2f
@@ -475,9 +507,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        try {
-            unregisterReceiver(offReceiver)
-        } catch (e: Exception) {}
+        try { unregisterReceiver(offReceiver) } catch (e: Exception) {}
     }
 
     private fun fetchLampStatus() {
