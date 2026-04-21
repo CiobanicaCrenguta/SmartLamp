@@ -30,6 +30,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Animation
+import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -47,6 +49,7 @@ import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityCompat
@@ -294,29 +297,47 @@ class MainActivity : ComponentActivity() {
                 enabled = uiEnabled.value,
                 label = { Text("Lamp Mode", fontWeight = FontWeight.Medium) },
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = modeExpanded) },
+                leadingIcon = { Icon(Icons.Default.Category, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
                 modifier = Modifier
                     .menuAnchor(MenuAnchorType.PrimaryNotEditable)
                     .fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(24.dp),
                 textStyle = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                    disabledContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
                 )
             )
-            ExposedDropdownMenu(
-                expanded = modeExpanded,
-                onDismissRequest = { modeExpanded = false }
-            ) {
-                modes.forEachIndexed { index, mode ->
-                    DropdownMenuItem(
-                        text = { Text(mode) },
-                        onClick = {
-                            selectedMode.value = mode
-                            modeExpanded = false
-                            handleModeSelection(index)
-                        }
-                    )
+            MaterialTheme(shapes = MaterialTheme.shapes.copy(extraSmall = RoundedCornerShape(24.dp))) {
+                ExposedDropdownMenu(
+                    expanded = modeExpanded,
+                    onDismissRequest = { modeExpanded = false },
+                    modifier = Modifier.background(MaterialTheme.colorScheme.surface)
+                ) {
+                    modes.forEachIndexed { index, mode ->
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    mode,
+                                    style = MaterialTheme.typography.bodyLarge.copy(
+                                        fontWeight = if (selectedMode.value == mode) FontWeight.Bold else FontWeight.Normal
+                                    )
+                                )
+                            },
+                            onClick = {
+                                selectedMode.value = mode
+                                modeExpanded = false
+                                handleModeSelection(index)
+                            },
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                            colors = MenuDefaults.itemColors(
+                                textColor = if (selectedMode.value == mode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                            )
+                        )
+                    }
                 }
             }
         }
@@ -395,7 +416,7 @@ class MainActivity : ComponentActivity() {
             targetValue = if (uiEnabled.value && isAnimMode) 1.0f else 0.4f,
             label = "animAlpha"
         )
-        
+
         Card(
             modifier = Modifier
                 .fillMaxWidth()
@@ -428,25 +449,47 @@ class MainActivity : ComponentActivity() {
                         enabled = uiEnabled.value && isAnimMode,
                         placeholder = { Text("Select animation") },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = animExpanded) },
+                        leadingIcon = { Icon(Icons.Default.Animation, contentDescription = null, tint = MaterialTheme.colorScheme.secondary) },
                         modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
-                        textStyle = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold)
+                        shape = RoundedCornerShape(24.dp),
+                        textStyle = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = MaterialTheme.colorScheme.secondary,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                            focusedContainerColor = MaterialTheme.colorScheme.surface,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                            disabledContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
+                        )
                     )
-                    ExposedDropdownMenu(
-                        expanded = animExpanded,
-                        onDismissRequest = { animExpanded = false }
-                    ) {
-                        animNames.forEachIndexed { index, name ->
-                            DropdownMenuItem(
-                                text = { Text(name) },
-                                onClick = {
-                                    selectedAnimation.value = name
-                                    animExpanded = false
-                                    if (uiEnabled.value) {
-                                        sendToLamp("/setAnimation?val=$index")
-                                    }
-                                }
-                            )
+                    MaterialTheme(shapes = MaterialTheme.shapes.copy(extraSmall = RoundedCornerShape(24.dp))) {
+                        ExposedDropdownMenu(
+                            expanded = animExpanded,
+                            onDismissRequest = { animExpanded = false },
+                            modifier = Modifier.background(MaterialTheme.colorScheme.surface)
+                        ) {
+                            animNames.forEachIndexed { index, name ->
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            name,
+                                            style = MaterialTheme.typography.bodyLarge.copy(
+                                                fontWeight = if (selectedAnimation.value == name) FontWeight.Bold else FontWeight.Normal
+                                            )
+                                        )
+                                    },
+                                    onClick = {
+                                        selectedAnimation.value = name
+                                        animExpanded = false
+                                        if (uiEnabled.value) {
+                                            sendToLamp("/setAnimation?val=$index")
+                                        }
+                                    },
+                                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                                    colors = MenuDefaults.itemColors(
+                                        textColor = if (selectedAnimation.value == name) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurface
+                                    )
+                                )
+                            }
                         }
                     }
                 }
