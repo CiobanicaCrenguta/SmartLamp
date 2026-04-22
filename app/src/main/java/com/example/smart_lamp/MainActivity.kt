@@ -401,7 +401,7 @@ class MainActivity : ComponentActivity() {
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
         ) {
             Column(
-                modifier = Modifier.padding(24.dp),
+                modifier = Modifier.fillMaxWidth().padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
@@ -415,15 +415,17 @@ class MainActivity : ComponentActivity() {
                 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                SimpleColorPicker(
-                    enabled = uiEnabled.value && isColorMode,
-                    onColorChanged = { r, g, b ->
-                        selectedColor.value = android.graphics.Color.rgb(r, g, b).let {
-                            Color(it)
+                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    SimpleColorPicker(
+                        enabled = uiEnabled.value && isColorMode,
+                        onColorChanged = { r, g, b ->
+                            selectedColor.value = android.graphics.Color.rgb(r, g, b).let {
+                                Color(it)
+                            }
+                            sendToLamp("/setColor?r=$r&g=$g&b=$b")
                         }
-                        sendToLamp("/setColor?r=$r&g=$g&b=$b")
-                    }
-                )
+                    )
+                }
             }
         }
     }
