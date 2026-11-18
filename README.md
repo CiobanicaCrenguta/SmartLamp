@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/banner.svg" width="100%" alt="SmartLamp, spelled out in glowing LED dots beside a small smiling LED-matrix lamp that bounces, blinks and turns its face into a beating heart">
+  <img src="banner.svg" width="100%" alt="SmartLamp, spelled out in glowing LED dots beside a small smiling LED-matrix lamp that bounces, blinks and turns its face into a beating heart">
 </p>
 
 <p align="center">
@@ -15,13 +15,13 @@ SmartLamp is an Android app for a very small lamp with a very large personality.
 *Lampă* is feminine in Romanian, so around here the lamp is a she. I don't make the rules.
 
 <p align="center">
-  <img src="assets/divider.svg" width="100%" alt="">
+  <img src="divider.svg" width="100%" alt="">
 </p>
 
 ## Say hello
 
 <p align="center">
-  <img src="assets/demo.gif" width="560" alt="A phone running the SmartLamp app changes animations and colours on an 8 by 8 LED matrix wired to an ESP32 on a breadboard">
+  <img src="demo.gif" width="560" alt="A phone running the SmartLamp app changes animations and colours on an 8 by 8 LED matrix wired to an ESP32 on a breadboard">
   <br>
   <sub>The real thing at double speed, and yes, that is the real box. <a href="Smart_Lamp.mp4">Watch the full clip.</a></sub>
 </p>
@@ -31,7 +31,7 @@ SmartLamp is an Android app for a very small lamp with a very large personality.
 She has one for every occasion, including several occasions that don't exist yet.
 
 <p align="center">
-  <img src="assets/moods.svg" width="100%" alt="Fourteen small LED panels, each playing one animation: Spiral, Fire, Rain, Heart, Plasma, Noise, Snake, Twinkle, Ripple, Meteor, ColorWave, Pacifica, Matrix and Pulse">
+  <img src="moods.svg" width="100%" alt="Fourteen small LED panels, each playing one animation: Spiral, Fire, Rain, Heart, Plasma, Noise, Snake, Twinkle, Ripple, Meteor, ColorWave, Pacifica, Matrix and Pulse">
   <br>
   <sub>Little portraits drawn for this page. The originals live on the lamp, and she does them her own way.</sub>
 </p>
@@ -62,7 +62,7 @@ And the small things that make her easy to live with:
 She has no ears. She has something better: a phone that tells her everything.
 
 <p align="center">
-  <img src="assets/music.svg" width="100%" alt="A phone playing music sends a stream of three-byte packets, holding volume, beat and hue, over UDP port 4210 to the lamp, which dances">
+  <img src="music.svg" width="100%" alt="A phone playing music sends a stream of three-byte packets, holding volume, beat and hue, over UDP port 4210 to the lamp, which dances">
 </p>
 
 1. **The phone listens to itself.** Android's playback capture picks up media audio at 44.1 kHz, so the room can be as noisy as it wants.
@@ -153,7 +153,7 @@ She is very trusting. Anyone on her Wi-Fi can talk to her, with no password and 
 - [ ] a real enclosure, although she is very attached to the box
 
 <p align="center">
-  <img src="assets/divider.svg" width="100%" alt="">
+  <img src="divider.svg" width="100%" alt="">
 </p>
 
 <p align="center">
