@@ -149,5 +149,5 @@ She is very trusting. Anyone on her Wi-Fi can talk to her, with no password and 
 </p>
 
 <p align="center">
-  <sub>Made by <a href="https://github.com/CiobanicaCrenguta">Crenguța</a>. Be kind to your lamps.</sub>
+  <sub>Made by <a href="https://github.com/CiobanicaCrenguta">Crenguța</a> and <a href="https://github.com/xD0ri4nx">Dorian</a>. Be kind to your lamps.</sub>
 </p>
