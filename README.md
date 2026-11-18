@@ -18,14 +18,6 @@ SmartLamp is an Android app for a very small lamp with a very large personality.
   <img src="divider.svg" width="100%" alt="">
 </p>
 
-## Say hello
-
-<p align="center">
-  <img src="demo.gif" width="560" alt="A phone running the SmartLamp app changes animations and colours on an 8 by 8 LED matrix wired to an ESP32 on a breadboard">
-  <br>
-  <sub>The real thing at double speed, and yes, that is the real box. <a href="Smart_Lamp.mp4">Watch the full clip.</a></sub>
-</p>
-
 ## Fourteen moods
 
 She has one for every occasion, including several occasions that don't exist yet.
